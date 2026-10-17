@@ -336,4 +336,494 @@ function CosmicRing({ average = 0, size = 48, count }) {
   const gid = "kzGrad" + size + Math.round(average*10);
   return (
     <div style={{ position:"relative", width:size, height:size, flexShrink:0 }}
-      title={cou
+      title={count ? (average.toFixed(1) + " / 5 (" + count + " değerlendirme)") : "Henüz değerlendirme yok"}>
+      <svg width={size} height={size} style={{ transform:"rotate(-90deg)" }}>
+        <defs>
+          <linearGradient id={gid} x1="0" y1="0" x2="1" y2="1">
+            <stop offset="0%" stopColor="#4fc3f7"/><stop offset="55%" stopColor="#9d7cf5"/><stop offset="100%" stopColor="#f4c05e"/>
+          </linearGradient>
+        </defs>
+        <circle cx={size/2} cy={size/2} r={r} fill="none" stroke="rgba(167,139,250,0.16)" strokeWidth="4"/>
+        {average > 0 && (
+          <circle cx={size/2} cy={size/2} r={r} fill="none" stroke={"url(#" + gid + ")"} strokeWidth="4"
+            strokeLinecap="round" strokeDasharray={dash + " " + (c - dash)} />
+        )}
+      </svg>
+      <div className="kz-display" style={{
+        position:"absolute", inset:0, display:"flex", alignItems:"center", justifyContent:"center",
+        fontSize: size < 40 ? 11 : 13, fontWeight:700, color: average > 0 ? T.text : T.mutedDim,
+      }}>
+        {average > 0 ? average.toFixed(1) : "—"}
+      </div>
+    </div>
+  );
+}
+
+function Stars({ value = 0, onRate, size = 18, readOnly }) {
+  const [hover, setHover] = useState(0);
+  const shown = hover || Math.round(value);
+  return (
+    <span style={{ display:"inline-flex", gap:2 }}>
+      {[1,2,3,4,5].map(n => (
+        <button key={n} type="button" disabled={readOnly}
+          onMouseEnter={() => !readOnly && setHover(n)} onMouseLeave={() => setHover(0)}
+          onClick={() => onRate && onRate(n)}
+          aria-label={n + " yıldız"}
+          style={{ background:"none", border:"none", padding:0, display:"flex", cursor: readOnly ? "default" : "pointer" }}>
+          <Star size={size} color={n <= shown ? T.gold : T.mutedDim} style={{ fill: n <= shown ? T.gold : "none" }} />
+        </button>
+      ))}
+    </span>
+  );
+}
+
+const inputStyle = {
+  width:"100%", background:"#0e1230", border:"1px solid " + T.border, borderRadius:12,
+  color:T.text, fontSize:14, padding:"11px 14px", outline:"none",
+};
+
+/* ================= Üst çubuk ================= */
+function Header({ query, setQuery, onAsk, onHome, overallAvg, overallCount, goList }) {
+  return (
+    <div style={{
+      position:"sticky", top:0, zIndex:20, display:"flex", alignItems:"center", gap:10,
+      padding:"12px 16px", background:"rgba(10,14,39,0.92)", backdropFilter:"blur(10px)",
+      borderBottom:"1px solid " + T.border,
+    }}>
+      <button onClick={onHome} title="Siteye dön" aria-label="Siteye dön" style={{
+        background:"transparent", border:"1px solid " + T.border, color:T.muted, borderRadius:10,
+        width:36, height:36, display:"flex", alignItems:"center", justifyContent:"center", flexShrink:0,
+      }}><Home size={17} /></button>
+      <button onClick={goList} style={{ display:"flex", alignItems:"center", gap:10, background:"none", border:"none", color:T.text, padding:0, flexShrink:0 }}>
+        <CosmicRing average={overallAvg} size={36} count={overallCount} />
+        <span className="kz-display" style={{ fontSize:18, fontWeight:700 }}>Kozmik Zihin</span>
+      </button>
+      <div style={{
+        flex:1, minWidth:0, display:"flex", alignItems:"center", gap:8, background:"#0e1230",
+        border:"1px solid " + T.border, borderRadius:999, padding:"0 14px", height:38,
+      }}>
+        <Search size={15} color={T.mutedDim} />
+        <input value={query} onChange={e => setQuery(e.target.value)} placeholder="Soru, konu veya etiket ara..."
+          style={{ flex:1, minWidth:0, background:"transparent", border:"none", outline:"none", color:T.text, fontSize:13.5 }} />
+        {query && <button onClick={() => setQuery("")} style={{ background:"none", border:"none", color:T.mutedDim, padding:0, display:"flex" }}><X size={14}/></button>}
+      </div>
+      <button onClick={onAsk} style={{
+        display:"flex", alignItems:"center", gap:6, background:T.purple, color:"#fff", border:"none",
+        borderRadius:999, padding:"0 16px", height:38, fontSize:13.5, fontWeight:600, flexShrink:0,
+      }}><Plus size={16} /> <span>Soru Sor</span></button>
+    </div>
+  );
+}
+
+/* ================= Soru kartı ================= */
+function QuestionCard({ q, onOpen, bookmarked }) {
+  const solved = !!bestAnswerId(q);
+  const avg = bestAnswerAvg(q);
+  const total = q.answers.reduce((n,a) => n + countRatings(a.raterIds), 0);
+  return (
+    <div className="kz-card kz-fade" onClick={onOpen} style={{
+      background:T.card, border:"1px solid " + T.border, borderRadius:16, padding:"16px 18px",
+      cursor:"pointer", display:"flex", gap:14,
+    }}>
+      <CosmicRing average={avg} size={46} count={total} />
+      <div style={{ flex:1, minWidth:0 }}>
+        <div style={{ display:"flex", flexWrap:"wrap", gap:8, alignItems:"center", marginBottom:6 }}>
+          <span style={{ display:"inline-flex", alignItems:"center", gap:5, fontSize:11.5, fontWeight:600, color:T.blue,
+            background:"rgba(79,195,247,0.1)", border:"1px solid rgba(79,195,247,0.3)", borderRadius:999, padding:"2px 10px" }}>
+            <CategoryIcon name={q.category} size={12}/> {q.category}
+          </span>
+          {solved && <span style={{ display:"inline-flex", alignItems:"center", gap:4, fontSize:11.5, fontWeight:600, color:T.green }}>
+            <CheckCircle2 size={13}/> Çözüldü</span>}
+        </div>
+        <div className="kz-display" style={{ fontSize:16.5, fontWeight:600, lineHeight:1.35, marginBottom:6 }}>
+          <MathText text={q.title} />
+        </div>
+        <div style={{ display:"flex", flexWrap:"wrap", gap:6, marginBottom:10 }}>
+          {q.tags.map(t => <span key={t} style={{ fontSize:11.5, color:T.muted, background:"rgba(167,139,250,0.08)", borderRadius:6, padding:"1px 8px" }}>#{t}</span>)}
+        </div>
+        <div style={{ display:"flex", flexWrap:"wrap", gap:"6px 14px", alignItems:"center", fontSize:12.5, color:T.muted }}>
+          <span style={{ color:T.text, fontWeight:600 }}>{q.user}</span>
+          <span>{timeAgo(q.date)}</span>
+          <span style={{ display:"inline-flex", gap:4, alignItems:"center" }}><MessageCircle size={13}/> {q.answers.length}</span>
+          <span style={{ display:"inline-flex", gap:4, alignItems:"center" }}><Eye size={13}/> {fmt(q.views)}</span>
+          <span style={{ display:"inline-flex", gap:4, alignItems:"center", color: bookmarked ? T.gold : T.muted }}>
+            <Bookmark size={13} style={{ fill: bookmarked ? T.gold : "none" }}/> {fmt(q.bookmarks)}
+          </span>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+/* ================= Liste görünümü ================= */
+function ListView({ questions, category, setCategory, sort, setSort, query, bookmarks, onOpen }) {
+  const [sortOpen, setSortOpen] = useState(false);
+  const filtered = useMemo(() => {
+    const qq = query.trim().toLowerCase();
+    let list = questions.filter(q => {
+      if (category !== "Tümü" && q.category !== category) return false;
+      if (!qq) return true;
+      return (q.title + " " + q.body + " " + q.category + " " + q.tags.join(" ")).toLowerCase().includes(qq);
+    });
+    if (sort === "solved") list = list.filter(q => !!bestAnswerId(q));
+    const score = {
+      star: q => bestAnswerAvg(q),
+      popular: q => q.views + q.bookmarks * 3 + q.answers.length * 5,
+      new: q => new Date(q.date).getTime(),
+      views: q => q.views,
+      answers: q => q.answers.length,
+      solved: q => bestAnswerAvg(q),
+    }[sort];
+    return [...list].sort((a,b) => score(b) - score(a));
+  }, [questions, category, sort, query]);
+  const cur = SORTS.find(s => s.key === sort);
+  const CurIcon = cur.icon;
+
+  return (
+    <div>
+      <div className="kz-scroll-x" style={{ marginBottom:14 }}>
+        {["Tümü", ...CATEGORIES.map(c => c.name)].map(name => {
+          const active = category === name;
+          return (
+            <button key={name} onClick={() => setCategory(name)} style={{
+              display:"inline-flex", alignItems:"center", gap:6, whiteSpace:"nowrap", flexShrink:0,
+              padding:"7px 14px", borderRadius:999, fontSize:13, fontWeight:600,
+              background: active ? T.purple : "transparent", color: active ? "#fff" : T.muted,
+              border:"1px solid " + (active ? T.purple : T.border),
+            }}>
+              {name !== "Tümü" && <CategoryIcon name={name} size={13}/>}{name}
+            </button>
+          );
+        })}
+      </div>
+
+      <div style={{ display:"flex", justifyContent:"space-between", alignItems:"center", marginBottom:14, position:"relative" }}>
+        <span style={{ fontSize:13, color:T.muted }}>{filtered.length} soru</span>
+        <button onClick={() => setSortOpen(o => !o)} style={{
+          display:"inline-flex", alignItems:"center", gap:7, background:T.card, border:"1px solid " + T.border,
+          color:T.text, borderRadius:10, padding:"7px 12px", fontSize:13,
+        }}>
+          <Filter size={14} color={T.purple}/> <CurIcon size={13}/> {cur.label} <ChevronDown size={14}/>
+        </button>
+        {sortOpen && (
+          <div style={{ position:"absolute", right:0, top:"calc(100% + 6px)", zIndex:10, background:"#12162e",
+            border:"1px solid " + T.borderHover, borderRadius:12, padding:6, minWidth:220, boxShadow:"0 12px 40px rgba(0,0,0,0.5)" }}>
+            {SORTS.map(s => {
+              const I = s.icon;
+              return (
+                <button key={s.key} onClick={() => { setSort(s.key); setSortOpen(false); }} style={{
+                  width:"100%", display:"flex", alignItems:"center", gap:9, padding:"9px 12px", border:"none", borderRadius:8,
+                  background: sort === s.key ? "rgba(157,124,245,0.18)" : "transparent",
+                  color: sort === s.key ? T.text : T.muted, fontSize:13.5, textAlign:"left",
+                }}><I size={14}/> {s.label}</button>
+              );
+            })}
+          </div>
+        )}
+      </div>
+
+      <div style={{ display:"flex", flexDirection:"column", gap:12 }}>
+        {filtered.map(q => <QuestionCard key={q.id} q={q} bookmarked={bookmarks.includes(q.id)} onOpen={() => onOpen(q.id)} />)}
+        {!filtered.length && (
+          <div style={{ textAlign:"center", color:T.muted, padding:"50px 10px", border:"1px dashed " + T.border, borderRadius:16 }}>
+            <Search size={28} color={T.mutedDim}/>
+            <div style={{ marginTop:10 }}>Aramana uygun soru bulunamadı. İlk soruyu sen sorabilirsin!</div>
+          </div>
+        )}
+      </div>
+    </div>
+  );
+}
+
+/* ================= Cevap kartı ================= */
+function AnswerCard({ a, isBest, myUid, onRate, onDelete }) {
+  const avg = avgRatings(a.raterIds), n = countRatings(a.raterIds);
+  const mine = a.owner === myUid;
+  const myRating = (a.raterIds || {})[myUid] || 0;
+  return (
+    <div className="kz-fade" style={{
+      background: isBest ? "linear-gradient(180deg, rgba(61,220,151,0.07), rgba(18,22,46,1))" : T.card,
+      border:"1px solid " + (isBest ? "rgba(61,220,151,0.4)" : T.border), borderRadius:16, padding:"16px 18px",
+    }}>
+      {isBest && <div style={{ display:"flex", alignItems:"center", gap:6, color:T.green, fontSize:13, fontWeight:600, marginBottom:10 }}>
+        <CheckCircle2 size={15}/> En İyi Cevap</div>}
+      <div style={{ display:"flex", alignItems:"center", gap:10, marginBottom:12 }}>
+        <div style={{ flex:1, minWidth:0, display:"flex", flexWrap:"wrap", gap:8, alignItems:"center" }}>
+          <span style={{ fontWeight:600, fontSize:14.5 }}>{a.user}</span>
+          <BadgeChip name={badgeOf(a.user)} />
+          <span style={{ fontSize:12, color:T.mutedDim }}>· {timeAgo(a.date)}</span>
+        </div>
+        <CosmicRing average={avg} size={38} count={n} />
+      </div>
+      <MathText block text={a.body} style={{ fontSize:14.5, lineHeight:1.7, color:T.text }} />
+      {a.source && <div style={{ marginTop:12, fontSize:12.5, color:T.blue }}>Kaynak: <span style={{ color:T.muted }}>{a.source}</span></div>}
+      <div style={{ marginTop:14, paddingTop:12, borderTop:"1px solid " + T.border, display:"flex", alignItems:"center", gap:10, flexWrap:"wrap" }}>
+        {mine ? (
+          <>
+            <span style={{ fontSize:12.5, color:T.mutedDim, flex:1 }}>Kendi cevabını değerlendiremezsin.</span>
+            <button onClick={onDelete} style={{ display:"inline-flex", alignItems:"center", gap:5, background:"none",
+              border:"1px solid rgba(244,117,117,0.4)", color:T.red, borderRadius:8, padding:"4px 10px", fontSize:12 }}>
+              <Trash size={13}/> Sil</button>
+          </>
+        ) : (
+          <>
+            <span style={{ fontSize:12.5, color:T.mutedDim }}>{myRating ? "Puanın:" : "Bu cevabı değerlendir:"}</span>
+            <Stars value={myRating} onRate={onRate} size={19} />
+          </>
+        )}
+      </div>
+    </div>
+  );
+}
+
+/* ================= Detay görünümü ================= */
+function DetailView({ q, myUid, bookmarked, onBack, onToggleBookmark, onRate, onAnswer, onDeleteAnswer, onDeleteQuestion }) {
+  const [body, setBody] = useState("");
+  const [source, setSource] = useState("");
+  const bestId = bestAnswerId(q);
+  const sorted = [...q.answers].sort((a,b) => {
+    if (a.id === bestId) return -1; if (b.id === bestId) return 1;
+    return avgRatings(b.raterIds) - avgRatings(a.raterIds);
+  });
+  const canSend = body.trim().length >= 5;
+  const submit = () => { if (!canSend) return; onAnswer(body.trim(), source.trim()); setBody(""); setSource(""); };
+
+  return (
+    <div>
+      <button onClick={onBack} style={{ display:"inline-flex", alignItems:"center", gap:7, background:"none", border:"none", color:T.muted, fontSize:13.5, padding:"4px 0", marginBottom:14 }}>
+        <ArrowLeft size={16}/> Tüm sorular
+      </button>
+
+      <div style={{ display:"flex", flexWrap:"wrap", gap:8, alignItems:"center", marginBottom:10 }}>
+        <span style={{ display:"inline-flex", alignItems:"center", gap:5, fontSize:12, fontWeight:600, color:T.blue,
+          background:"rgba(79,195,247,0.1)", border:"1px solid rgba(79,195,247,0.3)", borderRadius:999, padding:"2px 11px" }}>
+          <CategoryIcon name={q.category} size={12}/> {q.category}
+        </span>
+        {q.tags.map(t => <span key={t} style={{ fontSize:12, color:T.muted }}>#{t}</span>)}
+      </div>
+
+      <h1 className="kz-display" style={{ fontSize:24, fontWeight:700, lineHeight:1.3, margin:"0 0 10px" }}><MathText text={q.title} /></h1>
+      <MathText block text={q.body} style={{ fontSize:15, lineHeight:1.7, color:T.muted, marginBottom:14 }} />
+
+      <div style={{ display:"flex", flexWrap:"wrap", alignItems:"center", gap:"8px 14px", fontSize:13, color:T.muted, paddingBottom:16, borderBottom:"1px solid " + T.border }}>
+        <span style={{ color:T.text, fontWeight:600 }}>{q.user}</span>
+        <BadgeChip name={badgeOf(q.user)} />
+        <span>· sordu · {timeAgo(q.date)}</span>
+        <span style={{ flex:1 }} />
+        <span style={{ display:"inline-flex", gap:5, alignItems:"center" }}><Eye size={14}/> {fmt(q.views)} görüntülenme</span>
+        <button onClick={onToggleBookmark} style={{ display:"inline-flex", gap:5, alignItems:"center", background:"none", border:"none", fontSize:13,
+          color: bookmarked ? T.gold : T.muted, padding:0 }}>
+          <Bookmark size={14} style={{ fill: bookmarked ? T.gold : "none" }}/> {fmt(q.bookmarks)} kaydedildi
+        </button>
+        {q.owner === myUid && (
+          <button onClick={onDeleteQuestion} style={{ display:"inline-flex", alignItems:"center", gap:5, background:"none",
+            border:"1px solid rgba(244,117,117,0.4)", color:T.red, borderRadius:8, padding:"3px 10px", fontSize:12 }}>
+            <Trash size={13}/> Soruyu sil</button>
+        )}
+      </div>
+
+      <h2 className="kz-display" style={{ fontSize:17, fontWeight:600, margin:"22px 0 14px" }}>{q.answers.length} Cevap</h2>
+      <div style={{ display:"flex", flexDirection:"column", gap:12 }}>
+        {sorted.map(a => (
+          <AnswerCard key={a.id} a={a} isBest={a.id === bestId} myUid={myUid}
+            onRate={n => onRate(a.id, n)} onDelete={() => onDeleteAnswer(a.id)} />
+        ))}
+        {!q.answers.length && <div style={{ color:T.muted, fontSize:14, padding:"18px", border:"1px dashed " + T.border, borderRadius:14, textAlign:"center" }}>
+          Henüz cevap yok. İlk cevabı sen ver!</div>}
+      </div>
+
+      <div style={{ marginTop:22, background:T.card, border:"1px solid " + T.border, borderRadius:16, padding:"18px" }}>
+        <div className="kz-display" style={{ fontWeight:600, fontSize:15, marginBottom:12 }}>Cevabını paylaş</div>
+        <textarea value={body} onChange={e => setBody(e.target.value)} rows={4}
+          placeholder="Matematiksel ifadeler için $...$ veya $$...$$ kullanabilirsin."
+          style={{ ...inputStyle, resize:"vertical", minHeight:96, marginBottom:10 }} />
+        <input value={source} onChange={e => setSource(e.target.value)} placeholder="Kaynak (opsiyonel)" style={{ ...inputStyle, marginBottom:12 }} />
+        {body.includes("$") && (
+          <div style={{ marginBottom:12, padding:"10px 14px", borderRadius:10, border:"1px dashed " + T.border, fontSize:14 }}>
+            <div style={{ fontSize:11.5, color:T.mutedDim, marginBottom:4 }}>Önizleme</div>
+            <MathText block text={body} />
+          </div>
+        )}
+        <div style={{ display:"flex", justifyContent:"flex-end" }}>
+          <button onClick={submit} disabled={!canSend} style={{
+            display:"inline-flex", alignItems:"center", gap:8, border:"none", borderRadius:10, padding:"10px 18px", fontSize:14, fontWeight:600,
+            background: canSend ? T.purple : "rgba(157,124,245,0.25)", color: canSend ? "#fff" : T.muted,
+            cursor: canSend ? "pointer" : "not-allowed",
+          }}><Send size={15}/> Cevabı Gönder</button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+/* ================= Soru sor ================= */
+function AskView({ onCancel, onSubmit }) {
+  const [title, setTitle] = useState("");
+  const [body, setBody] = useState("");
+  const [category, setCategory] = useState("Fizik");
+  const [tags, setTags] = useState("");
+  const ok = title.trim().length >= 8;
+  const send = () => {
+    if (!ok) return;
+    const tagList = tags.split(",").map(t => t.trim().replace(/^#/, "").replace(/\s+/g, "-")).filter(Boolean).slice(0,5);
+    onSubmit({ title:title.trim(), body:body.trim(), category, tags:tagList });
+  };
+  return (
+    <div>
+      <button onClick={onCancel} style={{ display:"inline-flex", alignItems:"center", gap:7, background:"none", border:"none", color:T.muted, fontSize:13.5, padding:"4px 0", marginBottom:14 }}>
+        <ArrowLeft size={16}/> Vazgeç
+      </button>
+      <h1 className="kz-display" style={{ fontSize:24, fontWeight:700, margin:"0 0 6px" }}>Yeni soru sor</h1>
+      <p style={{ color:T.muted, fontSize:14, margin:"0 0 18px" }}>Net ve tek konuya odaklı sorular daha iyi cevap alır. Formüller için $...$ kullanabilirsin.</p>
+      <div style={{ background:T.card, border:"1px solid " + T.border, borderRadius:16, padding:18, display:"flex", flexDirection:"column", gap:12 }}>
+        <label style={{ fontSize:13, color:T.muted }}>Başlık
+          <input value={title} onChange={e => setTitle(e.target.value)} placeholder="Sorunu tek cümleyle yaz (en az 8 karakter)" style={{ ...inputStyle, marginTop:6 }} />
+        </label>
+        <label style={{ fontSize:13, color:T.muted }}>Detay (opsiyonel)
+          <textarea value={body} onChange={e => setBody(e.target.value)} rows={5} placeholder="Ne denedin, neyi anlamadın?" style={{ ...inputStyle, marginTop:6, resize:"vertical" }} />
+        </label>
+        <label style={{ fontSize:13, color:T.muted }}>Kategori
+          <select value={category} onChange={e => setCategory(e.target.value)} style={{ ...inputStyle, marginTop:6 }}>
+            {CATEGORIES.map(c => <option key={c.name} value={c.name}>{c.name}</option>)}
+          </select>
+        </label>  
+        <label style={{ fontSize:13, color:T.muted }}>Etiketler (virgülle ayır, en fazla 5)
+             <input value={tags} onChange={e => setTags(e.target.value)} placeholder="kara-delik, genel-görelilik" style={{ ...inputStyle, marginTop:6 }} />
+        </label>
+        <div style={{ display:"flex", justifyContent:"flex-end" }}>
+          <button onClick={send} disabled={!ok} style={{
+            display:"inline-flex", alignItems:"center", gap:8, border:"none", borderRadius:10, padding:"10px 18px", fontSize:14, fontWeight:600,
+            background: ok ? T.purple : "rgba(157,124,245,0.25)", color: ok ? "#fff" : T.muted, cursor: ok ? "pointer" : "not-allowed",
+          }}><Send size={15}/> Soruyu Yayınla</button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+/* ================= Ana uygulama ================= */
+function App() {
+  const [questions, setQuestions] = useState(loadQuestions);
+  const [bookmarks, setBookmarks] = useState(getBookmarks);
+  const [view, setView] = useState({ name:"list" });
+  const [query, setQuery] = useState("");
+  const [category, setCategory] = useState("Tümü");
+  const [sort, setSort] = useState("star");
+  const myUid = useMemo(getUid, []);
+  const scrollerRef = useRef(null);
+
+  useEffect(() => { saveQuestions(questions); }, [questions]);
+
+  // Sayfa kaydırmasını kilitle (tam ekran mod) ve Blogger'ın kaydırma çubuğunu gizle
+  useEffect(() => {
+    const prevHtml = document.documentElement.style.overflow;
+    const prevBody = document.body.style.overflow;
+    document.documentElement.style.overflow = "hidden";
+    document.body.style.overflow = "hidden";
+    return () => { document.documentElement.style.overflow = prevHtml; document.body.style.overflow = prevBody; };
+  }, []);
+
+  // Görünüm değişince en üste kaydır
+  useEffect(() => {
+    const el = document.getElementById("kz-app");
+    if (el) el.scrollTo({ top:0 });
+  }, [view.name, view.id]);
+
+  // Arama yazılınca listeye dön
+  useEffect(() => { if (query && view.name !== "list") setView({ name:"list" }); }, [query]);
+
+  const askName = () => {
+    let n = getUsername();
+    if (n) return n;
+    n = (window.prompt("Cevap/soru için görünecek adın:", "") || "").trim().slice(0, 24);
+    if (!n) return null;
+    saveUsername(n);
+    return n;
+  };
+
+  const overall = useMemo(() => {
+    const all = [];
+    questions.forEach(q => q.answers.forEach(a => Object.values(a.raterIds || {}).forEach(v => all.push(v))));
+    return { avg: all.length ? all.reduce((x,y)=>x+y,0)/all.length : 0, count: all.length };
+  }, [questions]);
+
+  const update = (id, fn) => setQuestions(qs => qs.map(q => q.id === id ? fn(q) : q));
+
+  const openQuestion = (id) => {
+    update(id, q => ({ ...q, views: q.views + 1 }));
+    setView({ name:"detail", id });
+  };
+
+  const toggleBookmark = (id) => {
+    const has = bookmarks.includes(id);
+    const next = has ? bookmarks.filter(b => b !== id) : [...bookmarks, id];
+    setBookmarks(next); saveBookmarks(next);
+    update(id, q => ({ ...q, bookmarks: Math.max(0, q.bookmarks + (has ? -1 : 1)) }));
+  };
+
+  const rate = (qid, aid, n) => update(qid, q => ({
+    ...q, answers: q.answers.map(a => a.id === aid ? { ...a, raterIds:{ ...a.raterIds, [myUid]: n } } : a),
+  }));
+
+  const addAnswer = (qid, body, source) => {
+    const name = askName(); if (!name) return;
+    update(qid, q => ({ ...q, answers:[...q.answers, { id:"a-" + uid(), user:name, date:todayStr(), body, source, raterIds:{}, owner:myUid }] }));
+  };
+
+  const deleteAnswer = (qid, aid) => {
+    if (!window.confirm("Cevabın silinsin mi?")) return;
+    update(qid, q => ({ ...q, answers: q.answers.filter(a => a.id !== aid) }));
+  };
+
+  const addQuestion = (data) => {
+    const name = askName(); if (!name) return;
+    const id = "q-" + uid();
+    setQuestions(qs => [{ id, ...data, user:name, date:todayStr(), views:0, bookmarks:0, answers:[], owner:myUid }, ...qs]);
+    setCategory("Tümü"); setSort("new"); setQuery("");
+    setView({ name:"detail", id });
+  };
+
+  const deleteQuestion = (id) => {
+    if (!window.confirm("Sorun silinsin mi?")) return;
+    setQuestions(qs => qs.filter(q => q.id !== id));
+    setView({ name:"list" });
+  };
+
+  const goHome = () => { window.location.href = "/"; };
+  const current = view.name === "detail" ? questions.find(q => q.id === view.id) : null;
+
+  return (
+    <div style={{ position:"relative", zIndex:1, minHeight:"100%", display:"flex", flexDirection:"column" }}>
+      <Header query={query} setQuery={setQuery} onAsk={() => setView({ name:"ask" })} onHome={goHome}
+        goList={() => { setQuery(""); setView({ name:"list" }); }}
+        overallAvg={overall.avg} overallCount={overall.count} />
+
+      <main style={{ flex:1, width:"100%", maxWidth:860, margin:"0 auto", padding:"20px 16px 40px" }}>
+        {view.name === "list" && (
+          <ListView questions={questions} category={category} setCategory={setCategory} sort={sort} setSort={setSort}
+            query={query} bookmarks={bookmarks} onOpen={openQuestion} />
+        )}
+        {view.name === "detail" && current && (
+          <DetailView q={current} myUid={myUid} bookmarked={bookmarks.includes(current.id)}
+            onBack={() => setView({ name:"list" })}
+            onToggleBookmark={() => toggleBookmark(current.id)}
+            onRate={(aid, n) => rate(current.id, aid, n)}
+            onAnswer={(body, source) => addAnswer(current.id, body, source)}
+            onDeleteAnswer={aid => deleteAnswer(current.id, aid)}
+            onDeleteQuestion={() => deleteQuestion(current.id)} />
+        )}
+        {view.name === "ask" && <AskView onCancel={() => setView({ name:"list" })} onSubmit={addQuestion} />}
+      </main>
+
+      <footer style={{ textAlign:"center", color:T.mutedDim, fontSize:12.5, padding:"18px 16px 28px", borderTop:"1px solid " + T.border }}>
+        Kozmik Zihin — meraktan bilgiye, birlikte.
+      </footer>
+    </div>
+  );
+}
+
+ReactDOM.createRoot(document.getElementById("root")).render(<App />);
+</script>
+
+             
+      
